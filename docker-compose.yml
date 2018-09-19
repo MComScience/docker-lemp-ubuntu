@@ -1,0 +1,124 @@
+version: '3'
+services:
+
+  db:
+    image: mariadb:latest
+    container_name: lemp_mariadb
+    restart: always
+    volumes:
+      - ./mysql/initdb:/docker-entrypoint-initdb.d
+      - ./mysql/data:/var/lib/mysql
+      - ./logs/mysql:/var/log/mysql
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_db
+      - MYSQL_DATABASE=mydb
+      #- MYSQL_USER=
+      #- MYSQL_PASSWORD=
+    ports:
+      - "3306:3306"
+    networks:
+      - backend
+
+  php56:
+    build: ./php56
+    container_name: lemp_php56-fpm
+    restart: always
+    volumes:
+      - ./www:/var/www/html
+      - ./php56/php-fpm.conf:/usr/local/etc/php-fpm.conf
+      - ./php56/php.ini:/usr/local/etc/php/php.ini
+      - ./logs/php56-fpm:/var/log/php-fpm
+    expose:
+      - "9000"
+      - "22"
+    networks:
+      - backend
+
+  php72:
+    build: ./php72
+    container_name: lemp_php72-fpm
+    restart: always
+    volumes:
+      - ./www:/var/www/html
+      - ./php72/php-fpm.conf:/usr/local/etc/php-fpm.conf
+      - ./php72/php.ini:/usr/local/etc/php/php.ini
+      - ./logs/php72-fpm:/var/log/php-fpm
+    expose:
+      - "9000"
+      - "22"
+    networks:
+      - backend
+    
+  nginx:
+    image: nginx:latest
+    container_name: lemp_nginx
+    restart: always
+    volumes:
+      - ./www:/var/www/html
+      #- ./nginx:/etc/nginx
+      - ./nginx/conf/nginx.conf:/etc/nginx/conf/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./logs/nginx:/var/log/nginx
+      - /etc/localtime:/etc/localtime:ro
+    links:
+      - php56
+      - php72
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - backend
+      - frontend
+
+  memcached:
+    image: memcached:latest
+    container_name: lemp_memcached
+    ports:
+      - "11211:11211"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    restart: always
+    networks:
+      - backend
+
+  redis:
+    image: redis
+    container_name: lemp_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis/data:/data
+      - ./redis/conf/redis.conf:/usr/local/etc/redis/redis.conf
+      - /etc/localtime:/etc/localtime:ro
+    restart: always
+    networks:
+      - backend
+
+  pma:
+    image: phpmyadmin/phpmyadmin
+    container_name: lemp_phpmyadmin
+    restart: always
+    ports:
+      - "8000:80"
+    environment:
+      PMA_HOST: db
+    depends_on:
+      - db
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - backend
+
+  node:
+    build: ./node
+    container_name: lemp_node
+    restart: always
+    ports:
+      - "3000:3000"
+
+networks:
+  frontend:
+    driver: bridge
+  backend:
+    driver: bridge
